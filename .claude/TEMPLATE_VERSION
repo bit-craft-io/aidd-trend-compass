@@ -1,0 +1,5 @@
+source: aidd-template-claude
+commit: 78cb1b2
+date: 2026-10-19
+dirty: no
+# 後付け: 実際のコピー元commitは不明。上記は、AIDDS-21 の取り込みで、ひな形と照合した時点のひな形のcommit(コピー元ではなく、照合時点)。ひな形の PR #23 のマージ後は、commit の番号が変わりうる。

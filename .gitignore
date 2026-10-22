@@ -1,0 +1,10 @@
+.idea
+.env
+.env.local
+*.db
+node_modules/
+__pycache__/
+venv/
+.venv/
+.superpowers/
+.worktrees/

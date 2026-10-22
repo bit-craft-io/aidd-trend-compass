@@ -1,0 +1,49 @@
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    command: --sort_buffer_size=1M
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-trend_compass}
+      MYSQL_USER: ${MYSQL_USER:-trend}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-trend}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+    ports:
+      - "3307:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-trend}:${MYSQL_PASSWORD:-trend}@db:3306/${MYSQL_DATABASE:-trend_compass}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      JQUANTS_API_KEY: ${JQUANTS_API_KEY:-}
+      JQUANTS_BASE_URL: ${JQUANTS_BASE_URL:-https://api.jquants.com/v2}
+      JQUANTS_RATE_LIMIT_PER_64S: ${JQUANTS_RATE_LIMIT_PER_64S:-5}
+      JQUANTS_MAX_STOCKS: ${JQUANTS_MAX_STOCKS:-10}
+      TREND_SHORT_PERIOD: ${TREND_SHORT_PERIOD:-5}
+      TREND_LONG_PERIOD: ${TREND_LONG_PERIOD:-25}
+      TREND_FLAT_BAND_PCT: ${TREND_FLAT_BAND_PCT:-1.0}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:
