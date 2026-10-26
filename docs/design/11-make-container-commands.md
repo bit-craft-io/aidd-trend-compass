@@ -4,7 +4,7 @@
 
 元の本文は、合意済みなので、書き換えない。追記が、あとの合意として、有効になる。
 
-(まだ無い)
+- AIDDS-27(2026-10-26): container-replace の追加(元の記述の変更: 「命令は3つ」を4つにする。「README の更新」の「3つの命令」のテーブルに、1行足す)
 
 Jira: AIDDS-22。親エピックは AIDDS-23 機能改善_202610_02(2026-10-22 時点)。
 
@@ -94,3 +94,38 @@ Jira: AIDDS-22。親エピックは AIDDS-23 機能改善_202610_02(2026-10-22 �
 - 参照元: `bc.aidd-template-claude/Makefile`、`bc.aidd-template-claude/make.d/template.mk`、
   `bc.aidd-rag/make.d/rag.mk`
 - 画面は無いので、「画面デザイン」の節は無い
+
+## 追記: container-replace(コンテナを1つ指定して置き換える)(AIDDS-27、2026-10-26)
+
+### 経緯
+
+`.env` の値を変えたあと、コンテナを1つだけ作り直したい場面がある。`container-up` は全部のコンテナを対象にし、`docker compose up -d --build` で、設定の変わらないコンテナは作り直されない。1つを指定して、確実に作り直す命令を足す。
+
+### 元の記述との関係
+
+- 「機能概要」の「命令は3つ」を、4つにする。足すのは `container-replace`
+- 「README の更新」の「3つの命令」のテーブルに、`make container-replace SERVICE=<サービス名>` の行を足す
+- そのほかの記述(`container-up`・`container-down`・`container-destroy`、`YES` の扱い、対象外)は、変えない
+
+### 命令
+
+| 命令 | 動き |
+|---|---|
+| `container-replace` | 指定したコンテナ1つを、ビルドし直して作り直す。`docker compose up -d --build --force-recreate --no-deps $(SERVICE)`。volume(DB のデータ)は残す |
+
+- 変数 `SERVICE`: 作り直すサービス名(`db` / `backend` / `frontend`)。**必須**。コマンドラインで渡されたときだけ受け付ける(`make container-replace SERVICE=frontend`)。環境変数に `SERVICE` があっても、無いものとして扱う(別の用途の `SERVICE` で、意図しないコンテナを作り直すのを避ける。`YES` と同じ作り)
+- `SERVICE` が空のときは、何も実行せず、`SERVICE is required. Example: make container-replace SERVICE=frontend` を出し、終了コードを 0 でなくして止める。全部を作り直すのは `container-up` の役目とし、混ぜない
+- `SERVICE` に、`docker-compose.yml` に無い名前を渡したときの検査は、足さない。`docker compose` のエラーが、そのまま見える(サービス名の一覧を、`docker-compose.yml` と二重に持たないため)
+- `--no-deps` を付ける。付けないと、`depends_on` の先(`frontend` なら `backend` と `db`)も、`--force-recreate` の対象になりうる。指定した1つだけを作り直すため
+- `--no-deps` のため、`depends_on` の先が動いていなくても、起動しない。`backend` を作り直すときに `db` が止まっていれば、`backend` は、DB に繋がらない。そのときは、先に `make container-up` を行う
+- `--force-recreate` を付ける。`.env` を変えただけで、コンテナの設定もイメージも変わらないとき、付けないと、何も起きないことがある
+- `--build` を付ける。ソースの変更も、設定の変更も、まとめて反映する。使う人が「どちらか」を考えずに済む
+- 終わりに、`Replaced: <サービス名>` を出す(URL は、出さない)
+- `make` の一覧には、変数 `SERVICE` と、例 `make container-replace SERVICE=frontend` を足す
+
+### 判断の経緯
+
+- 名前は `container-replace`。`container-build` は、イメージを作るだけと読めて、動きと食い違う。`container-restart` は、設定の再読み込みと紛れる(2026-10-26)
+- ビルドを含める(`--build`)。含めない案(設定の反映だけ)は、ソースの変更が反映されず、使い分けを強いる。採らなかった(2026-10-26)
+- `SERVICE` を省いたら、止める。全部を作り直す案は、`container-up` と役目が重なる。採らなかった(2026-10-26)
+- `--no-deps` を付ける(2026-10-26)。依頼の文には無かったが、「1つのコンテナだけ」という依頼の意図に合わせた。実機で、ほかのコンテナが作り直されぬことを確かめる
